@@ -556,7 +556,8 @@ fr_command_7z_handle_error (FrCommand   *comm,
 		return;
 	}
 
-	if ((error->status <= 1) || (unexpected_end_of_archive)) {
+	/* WARNING: error->status <= 1 may happen when the list is password-protected. */
+	if (/*error->status <= 1 || */unexpected_end_of_archive) {
 		error->type = FR_PROC_ERROR_NONE;
 	}
 	else {
@@ -575,25 +576,28 @@ fr_command_7z_handle_error (FrCommand   *comm,
 			    || (strstr (line, "Enter password") != NULL))
 			{
 				error->type = FR_PROC_ERROR_ASK_PASSWORD;
-				break;
+				return;
 			}
 		}
+
+		error->type = FR_PROC_ERROR_NONE; /* when error->status <= 1 */
 	}
 }
 
 
 const char *sevenz_mime_types[] = { "application/x-7z-compressed",
-				    "application/x-arj",
-				    "application/vnd.ms-cab-compressed",
-				    "application/vnd.efi.iso",
-				    "application/vnd.efi.img",
-				    /*"application/x-cbr",*/
-				    "application/x-cbz",
-				    "application/x-ms-dos-executable",
-				    "application/x-ms-wim",
-				    "application/x-rar",
-				    "application/zip",
-				    NULL };
+				"application/x-arj",
+				"application/vnd.ms-cab-compressed",
+				"application/vnd.efi.iso",
+				"application/vnd.efi.img",
+				/*"application/x-cbr",*/
+				"application/x-cbz",
+				"application/x-ms-dos-executable",
+				"application/x-ms-wim",
+				"application/vnd.rar",
+				"application/zip",
+				"application/vnd.android.package-archive",
+				NULL };
 
 
 static const char **
@@ -625,15 +629,7 @@ fr_command_7z_get_capabilities (FrCommand  *comm,
 			capabilities |= FR_COMMAND_CAN_ENCRYPT | FR_COMMAND_CAN_ENCRYPT_HEADER;
 	}
 	else if (is_program_available ("7z", check_command)) {
-		if (is_mime_type (mime_type, "application/x-rar")
-		    || is_mime_type (mime_type, "application/x-cbr"))
-		{
-			if (! check_command || g_file_test ("/usr/lib/p7zip/Codecs/Rar29.so", G_FILE_TEST_EXISTS) || g_file_test ("/usr/lib/p7zip/Codecs/Rar.so", G_FILE_TEST_EXISTS)
-			    || g_file_test ("/usr/libexec/p7zip/Codecs/Rar29.so", G_FILE_TEST_EXISTS) || g_file_test ("/usr/libexec/p7zip/Codecs/Rar.so", G_FILE_TEST_EXISTS))
-				capabilities |= FR_COMMAND_CAN_READ;
-		}
-		else
-			capabilities |= FR_COMMAND_CAN_READ;
+		capabilities |= FR_COMMAND_CAN_READ;
 
 		if (is_mime_type (mime_type, "application/x-cbz")
 		    || is_mime_type (mime_type, "application/x-ms-dos-executable")
@@ -665,12 +661,12 @@ static const char *
 fr_command_7z_get_packages (FrCommand  *comm,
 			    const char *mime_type)
 {
-	if (is_mime_type (mime_type, "application/x-rar"))
-		return PACKAGES ("p7zip,p7zip-rar");
+	if (is_mime_type (mime_type, "application/vnd.rar"))
+		return PACKAGES ("p7zip,p7zip-rar,7zip");
 	else if (is_mime_type (mime_type, "application/zip") || is_mime_type (mime_type, "application/vnd.ms-cab-compressed"))
-		return PACKAGES ("p7zip,p7zip-full");
+		return PACKAGES ("p7zip,p7zip-full,7zip");
 	else
-		return PACKAGES ("p7zip");
+		return PACKAGES ("p7zip,7zip");
 }
 
 
